@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/antferr/erc721-burn-record/actions/workflows/test.yml/badge.svg)](https://github.com/antferr/erc721-burn-record/actions/workflows/test.yml)
 
-Reference implementation and tests for a proposed ERC-721 extension that lets other contracts read, through a single view function, which address burned a token.
+Reference implementation and tests for a proposed ERC-721 extension that lets other contracts read, through `burnedBy`, the address recorded as the owner of a token when it was burned.
 
 The proposal is under discussion on the Fellowship of Ethereum Magicians and has no ERC number yet. Feedback on the semantics belongs in the thread:
 https://ethereum-magicians.org/t/erc-721-burn-record-extension/29732
@@ -35,7 +35,8 @@ The normative text is in the discussion thread. In short:
 
 - The recorded address is the `from` of the `Transfer` event emitted by the burn, that is, the owner at the time of the burn. When an approved operator burns a token, the record names the owner, not the operator. When a contract holds a token and burns it, the record names that contract.
 - `address(0)` means that no burn record exists: the token exists, was never minted, or was burned before the record existed. A non-zero answer is proof; zero proves nothing. Interfaces that show this record to users should present zero as "no record", never as proof that the token never existed.
-- While a token exists, `burnedBy` returns `address(0)`. If a contract re-mints a token id, `burnedBy` reports the most recent burn only: it is not a receipt. A consumer that guards value on it should read it once and store the result: at burn time if it takes part in the burn, otherwise at its first request, which leaves a window between the burn and that reading where ids are re-minted.
+- While a token exists, `burnedBy` returns `address(0)`. The extension does not constrain minting, so a token id can be re-minted; `burnedBy` then reports the most recent burn only: it is not a receipt. A consumer that guards value on it should read it once and store the result: at burn time if it takes part in the burn, otherwise at its first request, which leaves a window between the burn and that reading where ids are re-minted.
+- The time and the transaction of the burn are not recorded. Burn history and links to transactions still come from the logs.
 
 ## Using the implementation
 

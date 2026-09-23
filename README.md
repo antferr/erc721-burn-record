@@ -4,7 +4,7 @@
 
 Reference implementation and tests for a proposed ERC-721 extension that lets other contracts read, through `burnedBy`, the address recorded as the owner of a token when it was burned.
 
-The proposal is under discussion on the Fellowship of Ethereum Magicians and has no ERC number yet. Feedback on the semantics belongs in the thread:
+The proposal has been submitted as a pull request to the ERCs repository and has no number yet: https://github.com/ethereum/ERCs/pull/2032. Feedback on the semantics belongs in the discussion thread:
 https://ethereum-magicians.org/t/erc-721-burn-record-extension/29732
 
 ## Why
@@ -31,7 +31,7 @@ interface IERC721BurnRecord /* is IERC721, IERC165 */ {
 
 ## Semantics in brief
 
-The normative text is in the discussion thread. In short:
+The normative text is the Specification in the pull request. In short:
 
 - The recorded address is the `from` of the `Transfer` event emitted by the burn, that is, the owner at the time of the burn. When an approved operator burns a token, the record names the owner, not the operator. When a contract holds a token and burns it, the record names that contract.
 - `address(0)` means that no burn record exists: the token exists, was never minted, or was burned before the record existed. A non-zero answer is proof; zero proves nothing. Interfaces that show this record to users should present zero as "no record", never as proof that the token never existed.
@@ -104,7 +104,7 @@ The overhead of a burn is one new storage slot.
 
 ## Status
 
-Proposal under discussion. The interface may change before it is assigned a number.
+Draft submitted as pull request #2032 to the ERCs repository. The interface may change before it is assigned a number.
 
 ## License
 

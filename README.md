@@ -1,11 +1,11 @@
-# ERC-721 burn record: reference implementation
+# ERC-8423 burn record: reference implementation
 
 [![CI](https://github.com/antferr/erc721-burn-record/actions/workflows/test.yml/badge.svg)](https://github.com/antferr/erc721-burn-record/actions/workflows/test.yml)
 
-Reference implementation and tests for a proposed ERC-721 extension that lets other contracts read, through `burnedBy`, the address recorded as the owner of a token when it was burned.
+Reference implementation and tests for ERC-8423, a proposed ERC-721 extension that lets other contracts read, through `burnedBy`, the address recorded as the owner of a token when it was burned.
 
-The proposal has been submitted as a pull request to the ERCs repository and has no number yet: https://github.com/ethereum/ERCs/pull/2032. Feedback on the semantics belongs in the discussion thread:
-https://ethereum-magicians.org/t/erc-721-burn-record-extension/29732
+The proposal has been assigned the number ERC-8423 and is under review as a draft in the ERCs repository: https://github.com/ethereum/ERCs/pull/2032. Feedback on the semantics belongs in the discussion thread:
+https://ethereum-magicians.org/t/erc-8423-erc-721-burn-record-extension/29732
 
 ## Why
 
@@ -104,7 +104,7 @@ The overhead of a burn is one new storage slot.
 
 ## Status
 
-Draft submitted as pull request #2032 to the ERCs repository. The interface may change before it is assigned a number.
+Draft ERC-8423, under review as pull request #2032 in the ERCs repository. The interface may change while the proposal is a draft.
 
 ## License
 

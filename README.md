@@ -70,7 +70,7 @@ The record is written on burns only. While a token exists, `burnedBy` returns ze
 | `src/ERC721BurnRecord.sol` | Reference implementation for OpenZeppelin Contracts 5.x |
 | `test/Semantics.t.sol` | Specification tests, run against two implementation variants |
 | `test/Invariants.t.sol` | Random sequences of mint, transfer, approval, burn and re-mint |
-| `test/Replay.t.sol` | The record rebuilt only from the `Transfer` logs, as an indexer would, compared with `burnedBy` after every step |
+| `test/Replay.t.sol` | `burnedBy` and the record rebuilt only from the `Transfer` logs, as an indexer would, both checked after every step against a model built from the operations |
 | `test/Consumers.t.sol` | Example consumers: redemption at burn time, claims, independent custodians releasing later, value settled after the burn |
 | `test/Gas.t.sol` | Cost of the extension |
 | `test/Composition.t.sol` | Composition with `ERC721Enumerable` and `ERC721Consecutive` |

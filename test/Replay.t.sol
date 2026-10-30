@@ -32,15 +32,18 @@ abstract contract LogReplay {
     }
 }
 
-/// @dev Drives random sequences of mint, transfer, approval, burn and re-mint, records the
-///      logs of every step and replays them. It keeps no ledger of its own: what it knows
-///      comes from the logs only.
+/// @dev Drives random sequences of mint, transfer, approval, burn and re-mint. It keeps two
+///      independent sources of the expected record: its own ledger, built from the operations
+///      (the owner it reads before each burn), and the record replayed from the logs of every
+///      step. The ledger checks that the record is correct; the replay checks that the logs agree.
 contract ReplayHandler is Test, LogReplay {
     uint256 public constant ID_SPACE = 8;
     address internal constant DEAD = 0x000000000000000000000000000000000000dEaD;
 
     ITestToken public immutable token;
     address[] internal actors;
+
+    mapping(uint256 tokenId => address burner) public expectedBurner;
 
     constructor(ITestToken token_) {
         token = token_;
@@ -73,6 +76,7 @@ contract ReplayHandler is Test, LogReplay {
         (bool exists,) = _owner(id);
         if (exists) return;
         token.mint(_actor(actorSeed), id);
+        delete expectedBurner[id];
     }
 
     function transfer(uint256 toSeed, uint256 idSeed) external replayed {
@@ -97,6 +101,7 @@ contract ReplayHandler is Test, LogReplay {
         if (!exists) return;
         vm.prank(owner);
         token.burn(id);
+        expectedBurner[id] = owner;
     }
 
     function burnByApproved(uint256 opSeed, uint256 idSeed) external replayed {
@@ -108,6 +113,7 @@ contract ReplayHandler is Test, LogReplay {
         token.approve(op, id);
         vm.prank(op);
         token.burn(id);
+        expectedBurner[id] = owner;
     }
 
     function burnByOperatorForAll(uint256 opSeed, uint256 idSeed) external replayed {
@@ -119,20 +125,24 @@ contract ReplayHandler is Test, LogReplay {
         token.setApprovalForAll(op, true);
         vm.prank(op);
         token.burn(id);
+        expectedBurner[id] = owner;
         vm.prank(owner);
         token.setApprovalForAll(op, false);
     }
 
     function burnInternal(uint256 idSeed) external replayed {
         uint256 id = idSeed % ID_SPACE;
-        (bool exists,) = _owner(id);
+        (bool exists, address owner) = _owner(id);
         if (!exists) return;
         token.internalBurn(id);
+        expectedBurner[id] = owner;
     }
 }
 
-/// @dev F1: after any sequence of steps, the record rebuilt from the logs equals {burnedBy}
-///      for every id, live, burned or never minted.
+/// @dev F1: after any sequence of steps, for every id, live, burned or never minted, both
+///      {burnedBy} and the record rebuilt from the logs equal the handler's own ledger. A burn that
+///      wrote the same wrong address to the event and to {burnedBy} would agree with the replay
+///      and still fail against the ledger.
 abstract contract ReplayInvariantsTest is Test {
     ITestToken internal token;
     ReplayHandler internal handler;
@@ -146,9 +156,11 @@ abstract contract ReplayInvariantsTest is Test {
     }
 
     // F1
-    function invariant_ViewEqualsReplayedLogs() public view {
+    function invariant_ViewAndLogsMatchModel() public view {
         for (uint256 id; id < handler.ID_SPACE(); ++id) {
-            assertEq(token.burnedBy(id), handler.replayedBurner(id), "view differs from replayed logs");
+            address expected = handler.expectedBurner(id);
+            assertEq(token.burnedBy(id), expected, "view differs from the model");
+            assertEq(handler.replayedBurner(id), expected, "replayed logs differ from the model");
         }
     }
 }
@@ -165,15 +177,17 @@ contract ReplayInvariantsClearOnMintTest is ReplayInvariantsTest {
     }
 }
 
-/// @dev F2 and F3: fixed lifecycles, compared with the view after every step.
+/// @dev F2 and F3: fixed lifecycles. After every step both {burnedBy} and the record rebuilt
+///      from the logs are compared with the value the test expects, written out step by step.
 contract ReplayLifecycleTest is Test, LogReplay {
     address internal alice = makeAddr("alice");
     address internal bob = makeAddr("bob");
     address internal carol = makeAddr("carol");
 
-    function _check(ITestToken token, uint256 tokenId, string memory step) internal {
+    function _check(ITestToken token, uint256 tokenId, address expected, string memory step) internal {
         _replay(vm.getRecordedLogs(), address(token));
-        assertEq(token.burnedBy(tokenId), replayedBurner[tokenId], step);
+        assertEq(token.burnedBy(tokenId), expected, string.concat(step, ": view"));
+        assertEq(replayedBurner[tokenId], expected, string.concat(step, ": replayed logs"));
         vm.recordLogs();
     }
 
@@ -181,25 +195,23 @@ contract ReplayLifecycleTest is Test, LogReplay {
         vm.recordLogs();
 
         token.mint(alice, 1);
-        _check(token, 1, "after mint");
+        _check(token, 1, address(0), "after mint");
 
         vm.prank(alice);
         token.transferFrom(alice, bob, 1);
-        _check(token, 1, "after transfer");
+        _check(token, 1, address(0), "after transfer");
 
         vm.prank(bob);
         token.approve(carol, 1);
         vm.prank(carol);
         token.burn(1);
-        _check(token, 1, "after burn by an approved operator");
-        assertEq(replayedBurner[1], bob, "replay names the owner, not the operator");
+        _check(token, 1, bob, "after burn by an approved operator, owner not operator");
 
         token.mint(carol, 1);
-        _check(token, 1, "after re-mint");
+        _check(token, 1, address(0), "after re-mint");
 
         token.internalBurn(1);
-        _check(token, 1, "after internal burn");
-        assertEq(replayedBurner[1], carol, "replay names the last owner");
+        _check(token, 1, carol, "after internal burn, last owner");
     }
 
     // F2
@@ -212,22 +224,25 @@ contract ReplayLifecycleTest is Test, LogReplay {
         _lifecycle(ITestToken(address(new ClearOnMintBurnRecordToken())));
     }
 
-    // F3: tokens minted in a batch at construction emit no `Transfer`, as ERC-721 allows.
-    //     The replay never sees their mint, and still agrees with the view, because a
-    //     burn always emits `Transfer` and that is the only log the record depends on.
+    // F3: tokens minted in a batch at construction emit no `Transfer`, as ERC-721 allows
+    //     (OpenZeppelin emits the ERC-2309 `ConsecutiveTransfer` instead). The replay never
+    //     sees their mint and still agrees with the view, because a burn always emits
+    //     `Transfer`. The expected burner comes from the constructor arguments.
     function test_Lifecycle_ConsecutiveMintWithoutTransfer() public {
         vm.recordLogs();
         ConsecutiveBurnRecordToken token = new ConsecutiveBurnRecordToken(alice, 4);
         _replay(vm.getRecordedLogs(), address(token));
         for (uint256 id; id < 4; ++id) {
-            assertEq(token.burnedBy(id), replayedBurner[id], "batch-minted token before burn");
+            assertEq(token.ownerOf(id), alice, "batch-minted token owner");
+            assertEq(token.burnedBy(id), address(0), "batch-minted token before burn: view");
+            assertEq(replayedBurner[id], address(0), "batch-minted token before burn: replayed logs");
         }
 
         vm.recordLogs();
         vm.prank(alice);
         token.burn(2);
         _replay(vm.getRecordedLogs(), address(token));
-        assertEq(token.burnedBy(2), alice, "view after burn");
-        assertEq(replayedBurner[2], alice, "replay after burn");
+        assertEq(token.burnedBy(2), alice, "after burn: view");
+        assertEq(replayedBurner[2], alice, "after burn: replayed logs");
     }
 }

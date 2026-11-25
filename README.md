@@ -4,7 +4,7 @@
 
 Reference implementation and tests for ERC-8423, a proposed ERC-721 extension that lets other contracts read, through `burnedBy`, the address recorded as the owner of a token when it was burned.
 
-The proposal has been assigned the number ERC-8423 and is under review as a draft in the ERCs repository: https://github.com/ethereum/ERCs/pull/2032. Feedback on the semantics belongs in the discussion thread:
+ERC-8423 is published as a Draft: https://eips.ethereum.org/EIPS/eip-8423. Feedback on the semantics belongs in the discussion thread:
 https://ethereum-magicians.org/t/erc-8423-erc-721-burn-record-extension/29732
 
 ## Why
@@ -31,7 +31,7 @@ interface IERC721BurnRecord /* is IERC721, IERC165 */ {
 
 ## Semantics in brief
 
-The normative text is the Specification in the pull request. In short:
+The normative text is the Specification of ERC-8423. In short:
 
 - The recorded address is the `from` of the `Transfer` event emitted by the burn, that is, the owner at the time of the burn. When an approved operator burns a token, the record names the owner, not the operator. When a contract holds a token and burns it, the record names that contract.
 - `address(0)` means that no burn record exists: the token exists, was never minted, or was burned before the record existed. A non-zero answer is proof; zero proves nothing. Interfaces that show this record to users should present zero as "no record", never as proof that the token never existed.
@@ -105,7 +105,7 @@ The overhead of a burn is one new storage slot.
 
 ## Status
 
-Draft ERC-8423, under review as pull request #2032 in the ERCs repository. The interface may change while the proposal is a draft.
+Draft ERC-8423. The interface may change while the proposal is a draft.
 
 ## License
 

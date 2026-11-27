@@ -5,7 +5,7 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC721BurnRecord} from "./IERC721BurnRecord.sol";
 
 /// @title Reference implementation of the ERC-721 burn record extension
-/// @notice Lets other contracts read which address burned a token. The contract's state
+/// @notice Lets other contracts read the owner of a token at the time it was burned. The contract's state
 ///         is the source of truth, {burnedBy} is how other contracts read it, and the
 ///         `Transfer` event emitted by the burn announces the change.
 /// @dev In OpenZeppelin Contracts 5.x every burn path goes through {ERC721-_update},
